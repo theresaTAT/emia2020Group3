@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>UST Commute Prototype</title>
+</head>
+<body>
+<style>
+/* Layout: clickable phone prototype on the left, design notes that follow the current screen on the right; stacks on phones */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#14202b; --muted:#5d6b78; --line:#d9e0e6;
+  --phone:#f7f9fa; --card:#ffffff; --accent:#0b6e75; --accent-ink:#ffffff; --accent-soft:#dcefef;
+  --shuttle:#d98a00; --bus:#c8372d; --mtr:#2f6fb0; --walk:#8896a3; --taxi:#5b4bc4; --ok:#2e8b57; --warn:#b26a00;
+  --map:#e6ece9; --water:#cfe0ea;
+  --display:"Sora",ui-sans-serif,system-ui,sans-serif; --body:"Inter",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1418; --panel:#161d23; --ink:#e6edf2; --muted:#93a2ae; --line:#2a353e;
+  --phone:#11171c; --card:#1b242b; --accent:#35b3ba; --accent-ink:#06282a; --accent-soft:#16383b;
+  --shuttle:#f0a92a; --bus:#e5675d; --mtr:#6aa5e0; --walk:#7d8b97; --taxi:#9a8cf0; --ok:#4cc083; --warn:#e3a33b;
+  --map:#1a2420; --water:#16283a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1418; --panel:#161d23; --ink:#e6edf2; --muted:#93a2ae; --line:#2a353e;
+  --phone:#11171c; --card:#1b242b; --accent:#35b3ba; --accent-ink:#06282a; --accent-soft:#16383b;
+  --shuttle:#f0a92a; --bus:#e5675d; --mtr:#6aa5e0; --walk:#7d8b97; --taxi:#9a8cf0; --ok:#4cc083; --warn:#e3a33b;
+  --map:#1a2420; --water:#16283a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top h1{font-family:var(--display);font-size:26px;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+header.top p{margin:0;color:var(--muted);max-width:70ch}
+.layout{display:grid;grid-template-columns:400px minmax(0,1fr);gap:32px;margin-top:24px;align-items:start}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.phone-col{position:sticky;top:16px}
+@media (max-width:900px){.phone-col{position:static}}
+.phone{width:100%;max-width:390px;height:780px;margin:0 auto;border-radius:38px;border:10px solid #1c252c;background:var(--phone);overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 50px -20px rgba(10,30,40,.35)}
+.status{display:flex;justify-content:space-between;padding:10px 22px 4px;font-size:12px;font-weight:600;font-family:var(--mono)}
+.screen{flex:1;overflow-y:auto;padding:6px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:var(--card)}
+.tabs button{background:none;border:0;padding:10px 0 14px;font:600 11px var(--body);color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.tabs button svg{width:20px;height:20px}
+.tabs button.on{color:var(--accent)}
+button{font-family:inherit;color:inherit}
+button:focus-visible,.tap:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.h{font-family:var(--display);font-weight:600;font-size:20px;margin:4px 0 0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:12.5px;margin:0}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.hero{background:var(--accent);color:var(--accent-ink);border:0}
+.hero .eyebrow{color:inherit;opacity:.8}
+.big{font-family:var(--mono);font-size:34px;font-weight:500;letter-spacing:-.02em;line-height:1.1}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tap{cursor:pointer;text-align:left;width:100%;font:inherit}
+.opt{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:10px;align-items:center}
+.ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.pill.live{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.pill.sched{background:transparent;border:1px solid var(--muted);color:var(--muted)}
+.pill.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.pill.cross{background:transparent;border:1px dashed var(--taxi);color:var(--taxi)}
+.bar{display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;margin-top:8px}
+.bar span{display:block;height:100%}
+.btn{border:0;border-radius:12px;padding:12px 14px;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-ink);width:100%}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.small{width:auto;padding:7px 12px;font-size:12.5px;border-radius:10px}
+.back{background:none;border:0;color:var(--accent);font-weight:600;padding:0;cursor:pointer;font-size:13px;align-self:flex-start}
+.leg{display:grid;grid-template-columns:52px 14px minmax(0,1fr);gap:10px}
+.leg .t{font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
+.leg .rail{display:flex;flex-direction:column;align-items:center}
+.leg .dot{width:12px;height:12px;border-radius:50%;border:3px solid currentColor;background:var(--card)}
+.leg .line{flex:1;width:4px;border-radius:2px;background:currentColor;margin:2px 0;min-height:26px}
+.leg .body{padding-bottom:12px}
+.leg .body b{font-weight:600}
+.wait{font-size:12px;color:var(--warn);font-weight:600}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:8px;border-radius:9px;font-weight:600;font-size:12.5px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink)}
+.avs{display:flex}
+.av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;border:2px solid var(--card);margin-left:-6px}
+.av:first-child{margin-left:0}
+.av.empty{background:transparent;border:2px dashed var(--line);color:var(--muted)}
+.map{border-radius:16px;overflow:hidden;border:1px solid var(--line);background:var(--map)}
+.map svg{display:block;width:100%;height:auto}
+.sheet-bg{position:absolute;inset:0;background:rgba(5,15,20,.45);display:flex;align-items:flex-end;z-index:5}
+.sheet{background:var(--phone);width:100%;border-radius:22px 22px 0 0;padding:18px 16px 22px;display:flex;flex-direction:column;gap:12px;max-height:88%;overflow-y:auto}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--line);align-self:center}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted)}
+select,input[type=time]{font:500 14px var(--body);padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-weight:600}
+.callout{border-radius:12px;padding:10px 12px;font-size:12.5px;background:var(--accent-soft);color:var(--ink)}
+.stops{display:flex;flex-direction:column;gap:0}
+.stop{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.stop:last-child{border-bottom:0}
+.num{width:24px;height:24px;border-radius:50%;background:var(--taxi);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+.me{outline:2px solid var(--accent);outline-offset:1px}
+.toast{position:absolute;left:16px;right:16px;bottom:76px;background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;font-size:13px;font-weight:500;z-index:6}
+
+/* notes panel */
+.notes{display:flex;flex-direction:column;gap:20px;min-width:0}
+.ntabs{display:flex;flex-wrap:wrap;gap:6px}
+.ntabs button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:7px 14px;font-weight:600;font-size:13px;cursor:pointer;color:var(--muted)}
+.ntabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.npanel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.npanel h2{font-family:var(--display);font-size:19px;margin:0 0 10px;text-wrap:balance}
+.npanel h3{font-family:var(--display);font-size:15px;margin:18px 0 6px}
+.npanel p,.npanel li{max-width:72ch}
+.npanel ul,.npanel ol{padding-left:20px;margin:6px 0}
+.npanel li{margin:4px 0}
+.npanel .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.screen-note{border-left:3px solid var(--accent);padding:2px 0 2px 14px}
+.screen-note h4{margin:0 0 4px;font-family:var(--display);font-size:14px}
+.screen-note ul{margin:0}
+.ec{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+.ec div{padding:9px 12px;border-bottom:1px solid var(--line)}
+.ec div:nth-child(odd){font-weight:600;background:var(--bg)}
+@media (max-width:560px){.ec{grid-template-columns:minmax(0,1fr)}.ec div:nth-child(odd){border-bottom:0;padding-bottom:2px}}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(30px);opacity:.6}}}
+
+/* standalone: on phones the app fills the screen and the design notes are hidden */
+html,body{margin:0}
+@media (max-width:600px){
+  header.top,.notes{display:none}
+  .wrap{padding:0;max-width:none}
+  .layout{margin:0;gap:0}
+  .phone{max-width:none;width:100%;height:100vh;height:100dvh;border:0;border-radius:0;box-shadow:none}
+  .status{display:none}
+  .screen{padding-top:max(14px,env(safe-area-inset-top,0px))}
+  .tabs button{padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>UST Commute</h1>
+    <p>Clickable prototype for the three functions: route planner with the HKUST shuttle, shared taxi meetup groups, and door-to-door pickup. Everything shown is mock data. Tap around the phone; the notes on the right follow the screen you are on.</p>
+  </header>
+  <div class="layout">
+    <div class="phone-col">
+      <div class="phone" id="phone">
+        <div class="status"><span>09:12</span><span>5G ▮▮▮</span></div>
+        <div class="screen" id="screen"></div>
+        <nav class="tabs" id="tabs"></nav>
+        <div id="overlay"></div>
+      </div>
+    </div>
+    <section class="notes">
+      <div class="ntabs" id="ntabs"></div>
+      <div class="npanel" id="npanel"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const C={shuttle:'var(--shuttle)',bus:'var(--bus)',mtr:'var(--mtr)',walk:'var(--walk)',taxi:'var(--taxi)',gmb:'var(--ok)'};
+const AVC=['#0b6e75','#c8372d','#5b4bc4','#d98a00','#2f6fb0','#2e8b57','#8a4f9e'];
+
+const S={tab:'today',view:'today',ridesMode:'meet',route:0,group:null,joined:null,joinedPickup:false,override:null,sheet:null,toast:null,ntab:'screen'};
+
+const ROUTES=[
+ {name:'MTR + HKUST Shuttle',total:44,leave:'09:41',arrive:'10:25',cost:'$9.4',tags:['live','sched'],legs:[
+   {m:'walk',t:'09:41',title:'Walk to Po Lam Station',d:'6 min · 450 m'},
+   {m:'mtr',t:'09:47',title:'MTR Tseung Kwan O Line → Hang Hau',d:'1 stop · 3 min',wait:'Wait ~2 min (live, train every 4 min)',live:true},
+   {m:'walk',t:'09:52',title:'Walk to shuttle stop, Exit B1',d:'3 min'},
+   {m:'shuttle',t:'09:55',title:'HKUST Shuttle → South Gate',d:'14 min',wait:'Wait 5 min (timetable: 10:00 departure)',live:false},
+   {m:'walk',t:'10:14',title:'Walk to Lecture Theatre A',d:'9 min · includes lift queue buffer'}]},
+ {name:'KMB 91M direct',total:41,leave:'09:44',arrive:'10:25',cost:'$6.8',tags:['live'],legs:[
+   {m:'walk',t:'09:44',title:'Walk to Po Lam Bus Terminus',d:'5 min'},
+   {m:'bus',t:'09:49',title:'KMB 91M → HKUST (North)',d:'22 min',wait:'Wait ~6 min (live ETA 09:55)',live:true},
+   {m:'walk',t:'10:17',title:'Walk to Lecture Theatre A',d:'8 min'}]},
+ {name:'Green minibus 11',total:47,leave:'09:38',arrive:'10:25',cost:'$7.0',tags:['sched'],legs:[
+   {m:'walk',t:'09:38',title:'Walk to Hang Hau GMB stand',d:'12 min'},
+   {m:'gmb',t:'09:50',title:'GMB 11 → HKUST',d:'18 min',wait:'Wait ~7 min (estimated from headway)',live:false},
+   {m:'walk',t:'10:15',title:'Walk to Lecture Theatre A',d:'10 min'}]}
+];
+
+const GROUPS=[
+ {id:'g1',name:'Po Lam → UST',meet:'Po Lam Station, Exit B',walk:'4 min walk',dep:'09:55',seats:4,members:[['KL','Y2 COMP'],['MT','Y3 IEDA'],['SC','Y1 SSCI']],cost:22,cluster:'C3',cross:false,leader:'KL'},
+ {id:'g2',name:'Hang Hau morning',meet:'Hang Hau Station, Exit A2',walk:'MTR 3 min',dep:'10:00',seats:4,members:[['JY','Y4 MAEC']],cost:44,cluster:'C3',cross:false,leader:'JY'},
+ {id:'g3',name:'TKO Station run',meet:'Tseung Kwan O Station, Exit A',walk:'MTR 6 min',dep:'09:50',seats:4,members:[['RN','PG CSE'],['AW','Y2 BBA']],cost:30,cluster:'C4',cross:true,leader:'RN'},
+];
+const PICKUP={dep:'09:30',arrive:'10:14',cost:38,detour:6,stops:[
+ {n:'LOHAS Park, The Capitol lobby',t:'09:30',who:'EH'},
+ {n:'Po Lam, Metro Town drop-off bay',t:'09:39',who:'You',me:true},
+ {n:'Hang Hau, East Point City taxi stand',t:'09:45',who:'DL'},
+ {n:'HKUST South Gate',t:'10:00',who:null,end:true}]};
+
+const PLACES={
+ 'Hang Hau (friend’s place)':{inCluster:true,cluster:'C3 · Tseung Kwan O · 09:30–10:00',x:236,y:132},
+ 'Mong Kok (after part-time job)':{inCluster:false,near:['C1 · Kowloon Bay','C2 · Diamond Hill'],x:70,y:120},
+ 'Sai Kung Town':{inCluster:false,near:['C3 · Tseung Kwan O','C5 · Clear Water Bay'],x:250,y:58}
+};
+
+function av(i,s){return `<span class="av" style="background:${AVC[i%AVC.length]}">${s}</span>`}
+function ic(m,txt){return `<span class="ico" style="background:${C[m]}">${txt}</span>`}
+const ICON={
+ today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+ route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H15a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h6.5"/></svg>',
+ rides:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 16V11l2-5h10l2 5v5"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="13" r="1"/><circle cx="16.5" cy="13" r="1"/></svg>',
+ me:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>'};
+
+function mapSVG(place){
+  const pn=place||(S.override&&S.override.place), p=pn?PLACES[pn]:null;
+  const cl=[{x:80,y:118,r:30,l:'C1 Kowloon Bay'},{x:122,y:86,r:24,l:'C2 Diamond Hill'},{x:226,y:128,r:36,l:'C3 Tseung Kwan O'},{x:212,y:180,r:26,l:'C4 TKO South'},{x:284,y:96,r:22,l:'C5 Clear Water Bay'}];
+  let s=`<svg viewBox="0 0 340 220" role="img" aria-label="Cluster map of eastern Kowloon and Tseung Kwan O">
+  <rect width="340" height="220" fill="var(--map)"/>
+  <path d="M0 200 C60 190 90 210 140 200 S200 215 240 220 L0 220Z" fill="var(--water)"/>
+  <path d="M300 0 C290 40 320 70 305 120 S330 190 340 200 L340 0Z" fill="var(--water)"/>`;
+  cl.forEach(c=>{const hot=(c.l.startsWith('C3')||c.l.startsWith('C4'));const temp=p&&!p.inCluster&&p.near.some(n=>n.startsWith(c.l.slice(0,2)));
+    s+=`<circle cx="${c.x}" cy="${c.y}" r="${c.r}" fill="${temp?'var(--taxi)':'var(--accent)'}" fill-opacity="${hot||temp?.22:.1}" stroke="${temp?'var(--taxi)':'var(--accent)'}" stroke-opacity=".6" ${temp?'stroke-dasharray="4 3"':''}/>
+    <text x="${c.x}" y="${c.y-c.r-4}" font-size="9" text-anchor="middle" fill="var(--muted)" font-family="Inter,sans-serif">${c.l}</text>`;
+    for(let i=0;i<5;i++){const a=i*1.3+c.x,r=c.r*.55;s+=`<circle cx="${c.x+Math.cos(a)*r*((i%3)/2+.3)}" cy="${c.y+Math.sin(a)*r*((i%2)/2+.4)}" r="2.4" fill="var(--muted)"/>`;}
+  });
+  s+=`<g><rect x="286" y="150" width="44" height="18" rx="5" fill="var(--ink)"/><text x="308" y="163" font-size="9" text-anchor="middle" fill="var(--bg)" font-family="Inter,sans-serif" font-weight="600">HKUST</text></g>`;
+  if(p){s+=`<circle cx="232" cy="122" r="5" fill="none" stroke="var(--muted)" stroke-dasharray="2 2"/><text x="232" y="112" font-size="8" text-anchor="middle" fill="var(--muted)" font-family="Inter,sans-serif">usual (ignored today)</text>`;
+    s+=`<circle cx="${p.x}" cy="${p.y}" r="7" fill="var(--taxi)" stroke="var(--card)" stroke-width="2.5"/>`;}
+  else s+=`<circle cx="232" cy="122" r="7" fill="var(--accent)" stroke="var(--card)" stroke-width="2.5"/><text x="232" y="146" font-size="9" text-anchor="middle" fill="var(--ink)" font-weight="600" font-family="Inter,sans-serif">You</text>`;
+  return s+'</svg>';
+}
+
+/* ---------- screens ---------- */
+function today(){
+  const o=S.override;
+  return `<div><p class="sub">Tue 10 Nov · Week 11</p><h2 class="h">Good morning, Alex</h2></div>
+  <div class="card hero">
+    <div class="eyebrow">Next class · COMP 2011 · LT-A · 10:30</div>
+    <div class="row between" style="margin-top:6px;align-items:flex-end">
+      <div><div style="font-size:12px;opacity:.85">Leave home by</div><div class="big">09:41</div></div>
+      <div style="text-align:right;font-size:12px;opacity:.9">Arrive 10:25<br>5 min buffer</div>
+    </div>
+  </div>
+  ${o?`<div class="callout"><b>Today only:</b> leaving from ${o.place.split(' (')[0]} at ${o.time}. <button class="back" data-a="clearOverride" style="display:inline">Undo</button></div>`:''}
+  <div class="row between"><span class="eyebrow">Ways to get there</span><button class="back" data-a="openPlan">Plans changed today?</button></div>
+  <button class="card tap opt" data-a="goRoute">${ic('mtr','MTR')}<div><b>Public transport + shuttle</b><div class="sub">44 min · includes 7 min waiting</div></div><div style="text-align:right"><b class="mono">$9.4</b><div class="sub">leave 09:41</div></div></button>
+  <button class="card tap opt" data-a="goMeet">${ic('taxi','TAXI')}<div><b>Shared taxi, meet up</b><div class="sub">3 groups near you · from Po Lam 09:55</div></div><div style="text-align:right"><b class="mono">~$22</b><div class="sub">per person</div></div></button>
+  <button class="card tap opt" data-a="goPickup">${ic('taxi','D2D')}<div><b>Door-to-door pickup</b><div class="sub">Pickup at 09:39 · +${PICKUP.detour} min detour</div></div><div style="text-align:right"><b class="mono">~$38</b><div class="sub">per person</div></div></button>
+  ${S.joined?`<div class="card"><div class="eyebrow">Your ride today</div><div class="row between" style="margin-top:6px"><b>${GROUPS.find(g=>g.id===S.joined).name}</b><span class="pill">Confirmed</span></div><p class="sub">Meet at ${GROUPS.find(g=>g.id===S.joined).meet}, ${GROUPS.find(g=>g.id===S.joined).dep}</p></div>`:''}
+  ${S.joinedPickup?`<div class="card"><div class="eyebrow">Your ride today</div><div class="row between" style="margin-top:6px"><b>Door-to-door, TKO run</b><span class="pill">Confirmed</span></div><p class="sub">Be at Metro Town drop-off bay at 09:39</p></div>`:''}
+  <div class="card"><div class="row between"><span class="eyebrow">Weather &amp; service</span><span class="pill live">All normal</span></div><p class="sub" style="margin-top:4px">Shuttle running regular timetable. No typhoon or rainstorm signal.</p></div>`;
+}
+function routeList(){
+  return `<div><h2 class="h">To HKUST</h2><p class="sub">From home (Po Lam) · arrive by 10:25 for COMP 2011</p></div>
+  ${ROUTES.map((r,i)=>{const tw=r.legs.reduce((a,l)=>a+(l.wait?parseInt(l.wait.match(/\d+/)[0]):0),0);
+   return `<button class="card tap" data-a="routeDetail" data-i="${i}">
+   <div class="row between"><b>${r.name}</b><span class="mono" style="font-weight:600">${r.total} min</span></div>
+   <div class="row between sub" style="margin-top:2px"><span>Leave ${r.leave} · arrive ${r.arrive}</span><span>${r.cost}</span></div>
+   <div class="bar">${r.legs.map(l=>{const w=parseInt(l.d)||5;return `<span style="flex:${w};background:${C[l.m]}"></span>`}).join('')}</div>
+   <div class="row" style="margin-top:8px;gap:6px">${i===0?'<span class="pill">Uses shuttle</span>':''}${r.tags.includes('live')?'<span class="pill live">● Live ETA</span>':''}${r.tags.includes('sched')?'<span class="pill sched">Timetable</span>':''}<span class="pill warn">${tw} min waiting</span></div>
+   </button>`}).join('')}
+  <p class="sub">Times refresh every 30 s. Waiting time comes from live ETAs where the operator provides them, and from the timetable or headway otherwise.</p>`;
+}
+function routeDetail(){
+  const r=ROUTES[S.route];
+  return `<button class="back" data-a="routeBack">‹ All routes</button>
+  <div><h2 class="h">${r.name}</h2><p class="sub">${r.total} min · leave ${r.leave} · arrive ${r.arrive} · ${r.cost}</p></div>
+  <div class="card">${r.legs.map((l,i)=>`<div class="leg" style="color:${C[l.m]}"><div class="t">${l.t}</div><div class="rail"><span class="dot"></span>${i<r.legs.length-1?'<span class="line"></span>':''}</div>
+    <div class="body" style="color:var(--ink)"><b>${l.title}</b><div class="sub">${l.d}</div>${l.wait?`<div class="wait">${l.wait} ${l.live?'<span class="pill live">● Live</span>':'<span class="pill sched">Timetable</span>'}</div>`:''}</div></div>`).join('')}
+    <div class="leg"><div class="t">${r.arrive}</div><div class="rail"><span class="dot" style="color:var(--ink)"></span></div><div class="body"><b>LT-A, Academic Building</b><div class="sub">5 min before class</div></div></div>
+  </div>
+  <button class="btn" data-a="toast" data-m="Reminder set for 09:36 (5 min before leaving)">Remind me when to leave</button>
+  <div class="callout">If you miss the 10:00 shuttle, the next is 10:15 and you would arrive at 10:40. Switch to KMB 91M instead.</div>`;
+}
+function rides(){
+  const meet=S.ridesMode==='meet';
+  return `<div><h2 class="h">Share a ride</h2><p class="sub">To HKUST · today around 09:30–10:00</p></div>
+  <div class="seg"><button class="${meet?'on':''}" data-a="mode" data-m="meet">Meet up</button><button class="${!meet?'on':''}" data-a="mode" data-m="pickup">Door-to-door</button></div>
+  ${meet?meetList():pickupView()}`;
+}
+function meetList(){
+  return `<div class="map">${mapSVG()}</div>
+  <div class="row between"><span class="eyebrow">Groups near you</span><span class="sub">You're in cluster C3</span></div>
+  ${GROUPS.map(g=>{const left=g.seats-g.members.length-(S.joined===g.id?1:0);return `<button class="card tap" data-a="group" data-i="${g.id}">
+    <div class="row between"><b>${g.name}</b><span class="mono" style="font-weight:600">${g.dep}</span></div>
+    <p class="sub">${g.meet} · ${g.walk}</p>
+    <div class="row between" style="margin-top:8px"><div class="avs">${g.members.map((m,i)=>av(i+g.id.length*2,m[0])).join('')}${S.joined===g.id?av(0,'You'):''}${Array(Math.max(0,left)).fill('<span class="av empty">+</span>').join('')}</div>
+    <div class="row" style="gap:6px">${g.cross?'<span class="pill cross">Other cluster</span>':''}${S.joined===g.id?'<span class="pill">Joined</span>':`<span class="sub"><b class="mono" style="color:var(--ink)">~$${Math.round(g.cost*(g.members.length)/(g.members.length+1))}</b> each</span>`}</div></div>
+  </button>`}).join('')}
+  <button class="btn ghost" data-a="toast" data-m="New group drafted: Po Lam, 09:45. Others in your area will see it.">Start a new group</button>`;
+}
+function groupDetail(){
+  const g=GROUPS.find(x=>x.id===S.group), joined=S.joined===g.id;
+  const n=g.members.length+1, each=Math.round(g.cost*g.members.length/n);
+  return `<button class="back" data-a="ridesBack">‹ Groups</button>
+  <div><h2 class="h">${g.name}</h2><p class="sub">Started by ${g.leader} · ${g.cross?'members from cluster '+g.cluster+' and yours':'cluster '+g.cluster}</p></div>
+  <div class="card"><dl class="kv">
+    <dt>Meeting point</dt><dd>${g.meet}</dd><dt>Leaves at</dt><dd class="mono">${g.dep}</dd><dt>Arrive HKUST</dt><dd class="mono">~10:18</dd>
+    <dt>Est. fare</dt><dd class="mono">$${g.cost*g.members.length} total</dd><dt>Your share</dt><dd class="mono">~$${each}</dd><dt>Who books</dt><dd>${g.leader} hails / books</dd></dl></div>
+  <div class="card"><span class="eyebrow">Members (${g.members.length+(joined?1:0)}/${g.seats})</span>
+    ${g.members.map((m,i)=>`<div class="row" style="margin-top:8px">${av(i+g.id.length*2,m[0])}<div><b>${m[0]}</b> <span class="sub">${m[1]} · verified HKUST</span></div></div>`).join('')}
+    ${joined?`<div class="row" style="margin-top:8px">${av(0,'You')}<div><b>You</b> <span class="sub">Y2 COMP</span></div></div>`:''}</div>
+  <div class="callout">Group locks at 09:45 (10 min before leaving). Until then you can leave without penalty.</div>
+  ${joined?`<button class="btn ghost" data-a="leave">Leave group</button>`:`<button class="btn" data-a="confirmJoin">Join for ~$${each}</button>`}`;
+}
+function pickupView(){
+  const j=S.joinedPickup;
+  return `<div class="card"><div class="row between"><b>TKO run → HKUST</b><span class="pill">${j?'Confirmed':'1 seat left'}</span></div>
+   <p class="sub">The car comes to each of you. Departs ${PICKUP.dep}, arrives ${PICKUP.arrive}.</p>
+   <div class="stops" style="margin-top:8px">${PICKUP.stops.map((s,i)=>`<div class="stop"><span class="num" style="${s.end?'background:var(--ink)':''}">${s.end?'■':i+1}</span><div><b style="${s.me?'color:var(--accent)':''}">${s.n}</b><div class="sub">${s.who?(s.me?'Your pickup':'Pickup · '+s.who):'Drop-off'}</div></div><span class="mono">${s.t}</span></div>`).join('')}</div></div>
+  <div class="card"><dl class="kv"><dt>Your pickup</dt><dd class="mono">09:39</dd><dt>Detour vs going alone</dt><dd class="mono">+${PICKUP.detour} min</dd><dt>Your share (by distance)</dt><dd class="mono">~$${PICKUP.cost}</dd><dt>Driver waits</dt><dd>2 min max per stop</dd></dl></div>
+  <div class="callout">Pickup points snap to a public spot near each home (lobby, taxi stand). Exact addresses are never shown to other members.</div>
+  ${j?'<button class="btn ghost" data-a="leavePickup">Cancel my seat</button>':'<button class="btn" data-a="joinPickup">Request this seat</button>'}`;
+}
+function profile(){
+  return `<div><h2 class="h">You</h2><p class="sub">Alex W. · Year 2 · Computer Science</p></div>
+  <div class="card"><dl class="kv"><dt>Home area</dt><dd>Po Lam, TKO</dd><dt>Timetable</dt><dd>Synced from SIS · Fall 2026</dd><dt>Usual leave time</dt><dd class="mono">Mon–Fri ~09:40</dd></dl></div>
+  <div class="card"><span class="eyebrow">Matching preferences</span><dl class="kv" style="margin-top:6px"><dt>Show me in groups</dt><dd>On</dd><dt>Max walk to meet point</dt><dd>8 min</dd><dt>Max detour (door-to-door)</dt><dd>10 min</dd><dt>Ride with</dt><dd>Anyone verified</dd></dl></div>
+  <div class="card"><span class="eyebrow">Privacy</span><p class="sub" style="margin-top:4px">Other students see your district and initials only. Your address is used for matching and is never displayed.</p></div>`;
+}
+
+/* ---------- plan-change sheet ---------- */
+function planSheet(){
+  const pl=S.sheet.place||Object.keys(PLACES)[1], p=PLACES[pl], time=S.sheet.time||'11:15';
+  return `<div class="sheet-bg" data-a="closeSheet"><div class="sheet" data-stop="1" role="dialog" aria-label="Change today's plan">
+   <span class="grab"></span>
+   <div><h3 class="h" style="font-size:18px">Different plan today?</h3><p class="sub">Only affects today. Tomorrow goes back to your usual home and timetable.</p></div>
+   <label class="f" for="pl">Leaving from<select id="pl" data-ch="place">${Object.keys(PLACES).map(k=>`<option ${k===pl?'selected':''}>${k}</option>`).join('')}</select></label>
+   <label class="f" for="tm">Leaving at<input id="tm" type="time" value="${time}" data-ch="time"></label>
+   <div class="map">${mapSVG(pl)}</div>
+   ${p.inCluster?`<div class="callout"><b>You fit an existing cluster.</b><br>${p.cluster}. No re-clustering needed, you'll see those groups.</div>`
+   :`<div class="callout" style="background:transparent;border:1px dashed var(--taxi)"><b>No cluster nearby.</b><br>We'll build a temporary cluster with ${p.near.join(' and ')} for today only.</div>`}
+   <button class="btn" data-a="applyPlan">Use this plan for today</button>
+  </div></div>`;
+}
+function joinSheet(){
+  const g=GROUPS.find(x=>x.id===S.group);const n=g.members.length+1, each=Math.round(g.cost*g.members.length/n);
+  return `<div class="sheet-bg" data-a="closeSheet"><div class="sheet" data-stop="1" role="dialog" aria-label="Confirm joining group">
+   <span class="grab"></span><h3 class="h" style="font-size:18px">Join ${g.name}?</h3>
+   <dl class="kv"><dt>Be at</dt><dd>${g.meet}</dd><dt>By</dt><dd class="mono">${(()=>{const [h,m]=g.dep.split(':');return h+':'+String(+m-3).padStart(2,'0')})()}</dd><dt>Your share</dt><dd class="mono">~$${each}</dd><dt>Pay</dt><dd>${g.leader} via FPS after ride</dd></dl>
+   ${g.cross?'<div class="callout">This group is from a nearby cluster. The meeting point is a 6 min MTR ride from you.</div>':''}
+   <p class="sub">If you don't show up 2 min after departure, the group leaves and it counts on your reliability score.</p>
+   <button class="btn" data-a="doJoin">Confirm and join</button><button class="btn ghost" data-a="closeSheet">Not now</button>
+  </div></div>`;
+}
+
+/* ---------- notes ---------- */
+const NOTES={
+ today:{t:'Today',b:['One home screen answers one question: how do I get to my next class? The three functions show up as three comparable options, with the same fields (time, cost, when to leave).','Leave-by time comes from the timetable, so students never type their destination for a normal day.','"Plans changed today?" is the single entry to the temporary-point logic. It sits next to the options it changes.','A service banner covers typhoon and rainstorm signals and shuttle timetable changes, which will break plans more often than anything else.']},
+ route:{t:'Route list',b:['Each route shows total time with waiting time called out separately, since that is your differentiator over plain Google Maps.','Every waiting estimate says where it came from: Live (real-time ETA) or Timetable (shuttle schedule or headway). Students trust numbers more when they know which kind they are.','The coloured bar shows each leg by mode so the shuttle leg is visible at a glance.']},
+ routeDetail:{t:'Route detail',b:['A timeline with clock times on the left reads faster than a list of instructions.','Waiting gets its own amber line under each boarding leg.','A fallback note ("if you miss the 10:00 shuttle...") handles the most common failure of timetable-based legs.','"Remind me when to leave" is the action students actually want from a planner.']},
+ rides:{t:'Shared taxi, meet up',b:['The map shows clusters as soft areas, never individual home dots. That keeps the k-means output visible without exposing where anyone lives.','The list shows groups, not clusters. Clusters only decide which groups you see first. A group from another cluster is marked "Other cluster" so mixed groups are allowed and explained.','The price shown is your share if you join, which is the number that drives the decision.']},
+ group:{t:'Group detail',b:['Joining is always an explicit confirm step, as you specified. Nothing puts a student in a group automatically.','A lock time (10 min before leaving) gives everyone certainty while still allowing free cancellation earlier.','"Who books" removes the awkward question of who opens the taxi or Uber app.']},
+ pickup:{t:'Door-to-door',b:['Same matching as meet up, but the screen is an ordered pickup list with times, because order is what each rider cares about.','Show each rider their detour compared to riding alone, and cap it in settings (for example 10 min).','Split cost by distance travelled, since the first pickup rides furthest.','Pickup points snap to a nearby public spot, which protects addresses and is easier for drivers.']},
+ me:{t:'Profile',b:['Make privacy settings visible and default to district plus initials.','Matching preferences (max walk, max detour, who to ride with) become constraints on group suggestions, not on clustering.']},
+ plan:{t:'Plan change sheet',b:['The sheet shows the outcome before confirming: either "fits existing cluster" or "temporary cluster with C1 and C2 for today only".','The usual home point is drawn as a faded ring labelled "ignored today", so the student can see what changed.','The override expires at midnight automatically, with an Undo on the home screen.']}
+};
+function notesScreen(){
+  const k=S.sheet?.type==='plan'?'plan':(S.view==='routeDetail'?'routeDetail':S.view==='group'?'group':S.view==='rides'&&S.ridesMode==='pickup'?'pickup':S.view);
+  const n=NOTES[k]||NOTES.today;
+  return `<span class="tag">You are looking at</span><h2>${n.t}</h2><div class="screen-note"><ul>${n.b.map(x=>`<li>${x}</li>`).join('')}</ul></div>
+  <h3>Try this</h3><ol><li>On Today, tap <b>Plans changed today?</b>, pick Mong Kok, then Hang Hau, and compare the result.</li><li>Open <b>Shared taxi, meet up</b>, open a group and join it.</li><li>Switch to <b>Door-to-door</b> and request the seat.</li></ol>`;
+}
+const NT={
+ screen:['This screen',notesScreen],
+ understand:['My understanding',()=>`<h2>What I understood</h2>
+  <p>An app for HKUST students that already knows each student's home address and timetable, so it knows when they need to be on campus each day.</p>
+  <h3>1. Route planner</h3><p>Like Google Maps directions, built on HKeMobility (Transport Department) data. You add the HKUST shuttle bus as one more vehicle, using its timetable, so a route can mix MTR, bus, minibus and shuttle. Travel time includes walking, riding and the expected wait at each stop.</p>
+  <h3>2. Shared taxi or Uber, meet up</h3><ul>
+   <li>Run k-means on each student's address and usual leaving time. Each cluster is a set of students who live near each other and leave around the same time.</li>
+   <li>If a student's plan differs today, their usual point is ignored for today and a temporary point is added.</li>
+   <li>If the temporary point falls inside an existing cluster, nothing is re-clustered. If not, a few of the nearest clusters plus the new point are re-clustered for that day only.</li>
+   <li>Clusters are not groups. The system only uses clusters to suggest. Students create or join groups themselves and must confirm. A group can contain people from different clusters and even different districts.</li>
+   <li>Members walk or travel to a shared meeting point and get in the taxi together.</li></ul>
+  <h3>3. Door-to-door pickup</h3><p>Same matching and grouping as function 2, but the car picks each member up at or near their own location in sequence instead of everyone meeting at one point.</p>
+  <h3>Assumptions I made</h3><ul>
+   <li>Mobile app first, login with HKUST account so every rider is a verified student.</li>
+   <li>Trips go both ways (home to campus and campus to home); the prototype shows the morning trip.</li>
+   <li>Taxi groups hold up to 4 riders. Payment happens outside the app (FPS or PayMe) for now.</li>
+   <li>All names, stops, times and fares in the prototype are mock data, including the shuttle stop.</li></ul>`],
+ suggest:['Design suggestions',()=>`<h2>Suggestions</h2>
+  <h3>Make it one decision, not three apps</h3><p>Students do not think "I want function 2". They think "how do I get to my 10:30 class". Put all three functions on a single Today screen as comparable options with the same fields: total time, cost per person, and when to leave. Function 1 also becomes the fallback when a group doesn't fill.</p>
+  <h3>Show where every number comes from</h3><p>Label waiting times as Live or Timetable. A missed estimate hurts trust much less when the user knew it was an estimate.</p>
+  <h3>Never show home locations</h3><p>Show clusters as areas and people as initials plus district. Meeting and pickup points snap to public places such as station exits, lobbies and taxi stands.</p>
+  <h3>Add time pressure the right way</h3><p>Every group needs a departure time and a lock time. Before the lock, leaving is free. After it, a no-show affects a simple reliability score. This one rule solves most of the coordination problems in shared rides.</p>
+  <h3>Give the group one owner</h3><p>Whoever creates the group books the taxi or Uber and collects payment. "Who books?" is the question that stalls real WhatsApp ride groups.</p>
+  <h3>Algorithm notes that affect the UI</h3><ul>
+   <li>Scale features before k-means. Kilometres and minutes are on different scales, and the weight between them decides whether clusters mean "same area" or "same time".</li>
+   <li>K-means doesn't cap cluster size, which is fine because clusters only rank suggestions. Group size (4) is enforced on groups.</li>
+   <li>Consider computing clusters per direction and per day of week, since timetables differ by day.</li>
+   <li>Keep the "inside a cluster" test explicit, for example distance to centroid below the cluster's 90th percentile radius, so the UI can explain the result.</li>
+   <li>Re-run the full clustering nightly; temporary clusters only live for the day.</li></ul>`],
+ edge:['Edge cases',()=>`<h2>Edge cases to design for</h2><div class="ec">
+  <div>No group in my area</div><div>Offer "Start a group" and show public transport as the default. Notify when someone nearby joins.</div>
+  <div>Group doesn't fill by lock time</div><div>Show the new per-person price and let members choose to go anyway or switch to transit.</div>
+  <div>Someone doesn't show up</div><div>Wait 2 minutes, then the group leaves. The fare is re-split among those who rode.</div>
+  <div>Leader cancels</div><div>Promote the next member to leader automatically and tell everyone.</div>
+  <div>Class cancelled or exam day</div><div>Let users mark a day off or add a one-off time; this is the same "plans changed" flow.</div>
+  <div>Typhoon or black rainstorm</div><div>Banner on Today, suspend groups, and fall back to whatever is running.</div>
+  <div>Shuttle timetable changes in holidays</div><div>Version the timetable by date range and show "Holiday timetable" on affected legs.</div>
+  <div>Temporary point far from every cluster</div><div>Explain that we built a temporary cluster and show the wider area searched.</div>
+  <div>Changing plans twice in one day</div><div>The newest override replaces the old one; leave any group tied to the old plan with a prompt.</div>
+  <div>Safety concerns</div><div>Verified students only, optional same-gender groups, share trip with a friend, report and block.</div>
+  <div>Door-to-door detour too long</div><div>Each rider sets a maximum detour; never add a pickup that breaks anyone's limit.</div>
+  <div>Return trip from campus</div><div>Same flows, with the leave time taken from the last class and an easy "staying late" option.</div></div>`]
+};
+function renderNotes(){
+  document.getElementById('ntabs').innerHTML=Object.entries(NT).map(([k,v])=>`<button class="${S.ntab===k?'on':''}" data-n="${k}">${v[0]}</button>`).join('');
+  document.getElementById('npanel').innerHTML=NT[S.ntab][1]();
+}
+
+/* ---------- render & events ---------- */
+function render(){
+  const sc=document.getElementById('screen');
+  const map={today,route:routeList,routeDetail,rides,group:groupDetail,me:profile};
+  sc.innerHTML=(map[S.view]||today)();
+  document.getElementById('tabs').innerHTML=[['today','Today'],['route','Route'],['rides','Rides'],['me','Me']].map(([k,l])=>`<button class="${S.tab===k?'on':''}" data-tab="${k}">${ICON[k]}${l}</button>`).join('');
+  const ov=document.getElementById('overlay');
+  ov.innerHTML=(S.sheet?.type==='plan'?planSheet():S.sheet?.type==='join'?joinSheet():'')+(S.toast?`<div class="toast" role="status">${S.toast}</div>`:'');
+  renderNotes();
+}
+let tt;function toast(m){S.toast=m;clearTimeout(tt);tt=setTimeout(()=>{S.toast=null;render()},2600)}
+document.addEventListener('click',e=>{
+  const n=e.target.closest('[data-n]');if(n){S.ntab=n.dataset.n;renderNotes();return}
+  const t=e.target.closest('[data-tab]');if(t){S.tab=t.dataset.tab;S.view=t.dataset.tab;S.sheet=null;render();document.getElementById('screen').scrollTop=0;return}
+  const el=e.target.closest('[data-a]');if(!el)return;
+  if(el.dataset.a==='closeSheet'&&e.target.closest('[data-stop]')&&el.classList.contains('sheet-bg'))return;
+  const a=el.dataset.a;
+  const go=(tab,view)=>{S.tab=tab;S.view=view;document.getElementById('screen').scrollTop=0};
+  switch(a){
+   case 'goRoute':go('route','route');break;
+   case 'goMeet':S.ridesMode='meet';go('rides','rides');break;
+   case 'goPickup':S.ridesMode='pickup';go('rides','rides');break;
+   case 'routeDetail':S.route=+el.dataset.i;go('route','routeDetail');break;
+   case 'routeBack':go('route','route');break;
+   case 'mode':S.ridesMode=el.dataset.m;break;
+   case 'group':S.group=el.dataset.i;go('rides','group');break;
+   case 'ridesBack':go('rides','rides');break;
+   case 'confirmJoin':S.sheet={type:'join'};break;
+   case 'doJoin':S.joined=S.group;S.sheet=null;toast('You joined. Group chat and reminders are on.');break;
+   case 'leave':S.joined=null;toast('You left the group. No penalty before lock time.');break;
+   case 'joinPickup':S.joinedPickup=true;toast('Seat requested. Others confirm by 09:20.');break;
+   case 'leavePickup':S.joinedPickup=false;toast('Seat cancelled.');break;
+   case 'openPlan':S.sheet={type:'plan',place:Object.keys(PLACES)[1],time:'11:15'};break;
+   case 'closeSheet':S.sheet=null;break;
+   case 'applyPlan':S.override={place:S.sheet.place,time:S.sheet.time};S.sheet=null;toast('Today updated. Matching uses your new point.');break;
+   case 'clearOverride':S.override=null;toast('Back to your usual plan.');break;
+   case 'toast':toast(el.dataset.m);break;
+  }
+  render();
+});
+document.addEventListener('change',e=>{const c=e.target.dataset.ch;if(c&&S.sheet){S.sheet[c]=e.target.value;render();}});
+render();
+</script>
+
+</body>
+</html>
