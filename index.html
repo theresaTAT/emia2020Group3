@@ -130,6 +130,9 @@ html,body{margin:0}
   .status{display:none}
   .screen{padding-top:max(14px,env(safe-area-inset-top,0px))}
   .tabs button{padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
+
+  /* reserve room when a host overlay (e.g. a floating hosting badge) sits over the bottom of the screen */
+  .has-overlay .tabs{padding-bottom:var(--overlay-h,64px)}
 }
 </style>
 
@@ -444,5 +447,38 @@ document.addEventListener('change',e=>{const c=e.target.dataset.ch;if(c&&S.sheet
 render();
 </script>
 
+
+<script>
+/* Detect foreign fixed overlays at the bottom of the viewport (like a hosting badge) and lift the tab bar above them */
+(function(){
+  function check(){
+    let h=0;
+    for(const el of document.body.children){
+      if(el.tagName==='SCRIPT'||el.classList.contains('wrap'))continue;
+      const cs=getComputedStyle(el);
+      if(cs.display==='none'||cs.visibility==='hidden')continue;
+      const r=el.getBoundingClientRect();
+      if((cs.position==='fixed'||r.height>0)&&r.height>0&&r.height<200&&window.innerHeight-r.top<200&&r.bottom>window.innerHeight-200){
+        h=Math.max(h,window.innerHeight-r.top+8);
+      }
+    }
+    // also probe the bottom of the screen, in case the overlay lives inside a shadow root
+    const wrap=document.querySelector('.wrap');
+    for(let y=window.innerHeight-4;y>window.innerHeight-160;y-=6){
+      let hit=false;
+      for(const x of [window.innerWidth-24,window.innerWidth*0.7,window.innerWidth*0.5]){
+        const el=document.elementFromPoint(x,y);
+        if(el&&!wrap.contains(el)&&el!==document.body&&el!==document.documentElement){hit=true;break}
+      }
+      if(hit)h=Math.max(h,window.innerHeight-y+8);
+    }
+    document.documentElement.classList.toggle('has-overlay',h>0);
+    if(h>0)document.documentElement.style.setProperty('--overlay-h',Math.round(h)+'px');
+  }
+  new MutationObserver(()=>requestAnimationFrame(check)).observe(document.body,{childList:true,subtree:false});
+  window.addEventListener('resize',check);
+  setTimeout(check,500);setTimeout(check,2000);setTimeout(check,5000);
+})();
+</script>
 </body>
 </html>
